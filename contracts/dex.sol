@@ -32,9 +32,12 @@ contract Market is Pausable {
     // mapping of tokenId to if it's owned
     mapping(uint256 => bool) ownedCard;
 
-    // mapping of a user's address to a 
+    // mapping of a user's address to a balance of funds deposited for their proprietary software
     // total funds remaining in deposit of a patron to hold a token
-    mapping(address => uint256) public deposit;
+    mapping(address => mapping(uint256 => uint256)) public deposit;
+
+    // mapping of a token's id to the the last time a user paid a deposit
+    mapping(uint256 => mapping(address => uint256)) private lastDepositTimestamp;  
 
     // total funds still owed by owner
     // mapping of the owner's address to the derivative's cost
@@ -173,8 +176,8 @@ contract Market is Pausable {
      *  Allows a derivative work that has not yet been owned to become proprietary under the ownership of the caller. 
      */
     function makeProprietary(uint256 id, uint256 newAssessedPrice) 
-        payable 
         external 
+        payable 
         CardExists(id)
         IsOSS(id) 
         HasTransferApproval(derivList[id].tokenAddress, derivList[id].tokenId) 
@@ -188,15 +191,27 @@ contract Market is Pausable {
         // require that the benefactor is the current owner of the derivative work
         require(benefactors[id] == derivList[id].owner);
 
+        // update their deposit if they've paid more money than the asking price
+        if (msg.value > derivList[id].askingPrice) {
+            deposit[msg.sender][id] = derivList[id].askingPrice.sub(msg.value);
+        }
+
+        // pay the asking price to the beneficiary's address
+        derivList[id].beneficiary.transfer(derivList[id].askingPrice);
+
+        // interface the nft and safetransfer from beneficiary to buyer
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].beneficiary, msg.sender, derivList[id].tokenId);
+
+        // update the ownership of the derivative work and make it proprietary
+        derivList[id].owner = payable(msg.sender); 
+        derivList[id].isProprietary = true;
+
         // update derivatives's new asking price
         derivList[id].askingPrice = newAssessedPrice;
         emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
 
-        // interface the nft and safetransfer from beneficiary to buyer
-        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, msg.sender, derivList[id].tokenId);
 
     }
-
 
     /**
      *  Allows an owner of a proprietary derivative work to deposit funds.
@@ -209,8 +224,7 @@ contract Market is Pausable {
         OnlyOwner(id)
         returns(uint256)
     {
-
-        deposit[msg.sender].add(msg.value);
+        deposit[msg.sender][id].add(msg.value);
         uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
         totalOwedTokenCost[msg.sender][id].sub(msg.value);
          
@@ -226,7 +240,7 @@ contract Market is Pausable {
         IsProprietary(id) 
    {
        address owner = derivList[id].owner;
-       require(deposit[owner] == 0 || deposit[owner] < totalOwedTokenCost[owner][id],
+       require(deposit[owner][id] == 0 || deposit[owner][id] < totalOwedTokenCost[owner][id],
         "Owner still has enough funds deposited to retain ownership of the card");
         
         derivList[id].isProprietary = false;
