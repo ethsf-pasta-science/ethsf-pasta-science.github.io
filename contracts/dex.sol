@@ -12,27 +12,32 @@ contract Market is Pausable {
     mapping(address => bool) adminMap;
 
     struct DerivCard {
-        uint256 id;
-        address tokenAddress;
-        uint256 tokenId; 
-        address payable seller; 
-        uint256 askingPrice; 
-        address payable beneficiary;
-        uint256 fee;
-        bool isOwned; // if false, then foreclosed or brand new
+        uint256 id;                   // id associated with listing on the marketplace
+        address tokenAddress;         // address for the OSS's token; for interfacing with the OSS NFT
+        uint256 tokenId;              // ID for the NFT derivative work token; for O(1) indexing for read and write using mappings and lists
+        address payable owner;        // current owner of the derivative work
+        uint256 askingPrice;          // current asking price of the derivative work
+        address payable beneficiary;  // OSS community that created the OSS that the derivative work uses
+        uint256 fee;                  // percentage of fee from the asking price that the owner must pay to hold the derivative work proprietary
+        bool isProprietary;           // if true, the license behaves as copyleft, if false the license behaves as permissive
     }
 
-    // listing of every card that hasn't yet been foreclosed
-    DerivCard[] public derivCardList;
+    // listing of every open-source derivative work
+    DerivCard[] public derivList;
 
-    // stores the asking prices of each card listed under a certain token
-    mapping(address => mapping(uint256 => uint256)) cardsAskPrice;
+    // stores the asking prices of each derivative work listed under a certain token
+    // mapping of a OSS's address to a derivative 
+    mapping(address => mapping(uint256 => uint256)) derivAskPrice;
+
+    // mapping of tokenId to if it's owned
     mapping(uint256 => bool) ownedCard;
 
+    // mapping of a user's address to a 
     // total funds remaining in deposit of a patron to hold a token
     mapping(address => uint256) public deposit;
 
-    // total funds still owed by patron
+    // total funds still owed by owner
+    // mapping of the owner's address to the derivative's cost
     mapping(address => mapping(uint256 => uint256)) public totalOwedTokenCost;
     
 
@@ -62,9 +67,9 @@ contract Market is Pausable {
     /**
      * @notice Requires that only patrons of the card can call a given function
      */
-     modifier OnlyPatron(uint256 id) {
-        require(derivCardList[id].seller == msg.sender, 
-            "This operation can only be executed by the card's beneficiary");
+     modifier OnlyOwner(uint256 id) {
+        require(derivList[id].owner == msg.sender, 
+            "This operation can only be executed by the card's owner");
          _;
      }
     /**
@@ -99,17 +104,17 @@ contract Market is Pausable {
      * @notice Requires that the item is listed in the marketplace 
      */
      modifier CardExists(uint256 id) {
-         require(id < derivCardList.length && derivCardList[id].id == id, "Could not find card.");
+         require(id < derivList.length && derivList[id].id == id, "Could not find card.");
          _;
      }
 
-     modifier IsOwned(uint256 id) {
-         require(derivCardList[id].isOwned, "Cannot force a sale on a foreclosed card.");
+     modifier IsProprietary(uint256 id) {
+         require(derivList[id].isProprietary, "Derivatice work is open-source.");
          _;
      }
      
-     modifier IsForeclosed(uint256 id) {
-         require(!derivCardList[id].isOwned, "Cannot place a bid on a owned card.");
+     modifier IsOSS(uint256 id) {
+         require(!derivList[id].isProprietary, "Derivative work is proprietary.");
          _;
      }
 
@@ -117,112 +122,130 @@ contract Market is Pausable {
      /**
       * @notice Lists a card for auction in the market 
       */
-     function addCardToMarket(address tokenAddress, uint256 tokenId, uint256 askingPrice, address payable beneficiary, uint256 fee) 
+     function addDerivToMarket(address tokenAddress, uint256 tokenId, uint256 askingPrice, address payable beneficiary, uint256 fee) 
         OnlyBenefactor(tokenAddress, tokenId) 
         HasTransferApproval(tokenAddress, tokenId)
         external
         returns(uint256)
         {
-        require(fee > 0, "Card must have a tax rate");
+        require(fee > 0, "Derivative work must have a fee rate");
         // @TODO:require that the card isn't for auction yet?
-        uint256 newCardId = derivCardList.length;
-        derivCardList.push(DerivCard(newCardId, tokenAddress, tokenId, payable(msg.sender), askingPrice, beneficiary, fee, false));
+        uint256 newCardId = derivList.length;
+        derivList.push(DerivCard(newCardId, tokenAddress, tokenId, payable(msg.sender), askingPrice, beneficiary, fee, false));
         ownedCard[tokenId] = true;
 
-        assert(derivCardList[newCardId].id == newCardId);
+        assert(derivList[newCardId].id == newCardId);
         emit cardAdded(newCardId, tokenId, askingPrice);
         return newCardId;
     } 
 
     /**
-     *  Forces a sale by buying an already owned card at a higher or equal assessed price.
+     *  Forces a the derivative work to be OSS by buying an already owned derivative work at a higher or equal assessed price.
      */
-    function forceSale(uint256 id, uint256 newAssessedPrice) 
+    function forceOSS(uint256 id, uint256 newAssessedPrice) 
         payable
         external
         CardExists(id) 
-        IsOwned(id) 
-        HasTransferApproval(derivCardList[id].tokenAddress, derivCardList[id].tokenId) 
+        IsProprietary(id) 
+        HasTransferApproval(derivList[id].tokenAddress, derivList[id].tokenId) 
     {
-        require(msg.value >= derivCardList[id].askingPrice);
-        require(msg.sender != derivCardList[id].seller);
+        // require that the buying price is greater than the asking price
+        require(msg.value >= derivList[id].askingPrice);
+
+        // require that the owner isn't trying to buy the work from themselves
+        require(msg.sender != derivList[id].owner);
         
-        // update card's new price
-        derivCardList[id].askingPrice = newAssessedPrice;
+        // update work's new price
+        derivList[id].askingPrice = newAssessedPrice;
         emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
 
-        // interface the nft and safetransfer from seller to buyer
-        IERC721(derivCardList[id].tokenAddress).safeTransferFrom(derivCardList[id].seller, msg.sender, derivCardList[id].tokenId);
+        // interface the nft and safetransfer from owner to buyer
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, msg.sender, derivList[id].tokenId);
         
-        // transfer funds to seller 
-        derivCardList[id].seller.transfer(msg.value);
+        // transfer funds to owner 
+        derivList[id].owner.transfer(msg.value);
         emit cardSold(id, msg.sender, msg.value);
         
-        assert(derivCardList[id].seller == msg.sender);
+        assert(derivList[id].owner == msg.sender);
     } 
 
-    // function bid(uint256 id, uint256 newAssessedPrice) 
-    //     payable 
-    //     external 
-    //     CardExists(id)
-    //     IsForeclosed(id) 
-    //     HasTransferApproval(derivCardList[id].tokenAddress, derivCardList[id].tokenId) 
-    // {
-    //     require(msg.value >= derivCardList[id].askingPrice);
-    //     // equire(msg.sender != derivCardList[id].seller); is this required?
+    /**
+     *  Allows a derivative work that has not yet been owned to become proprietary under the ownership of the caller. 
+     */
+    function makeProprietary(uint256 id, uint256 newAssessedPrice) 
+        payable 
+        external 
+        CardExists(id)
+        IsOSS(id) 
+        HasTransferApproval(derivList[id].tokenAddress, derivList[id].tokenId) 
+    {
+        // require that the bidding price is greater than the asking price
+        require(msg.value >= derivList[id].askingPrice);
 
-    //     // update card's new price
-    //     derivCardList[id].askingPrice = newAssessedPrice;
-    //     emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
+        // require that the caller does not already own this derivative work
+        require(msg.sender != derivList[id].owner);
 
-    //     //@TODO: in foreclose function, make sure to change the seller so they reliquinsh ownership
-    //     // interface the nft and safetransfer from seller to buyer
-    //     IERC721(derivCardList[id].tokenAddress).safeTransferFrom(derivCardList[id].seller, msg.sender, derivCardList[id].tokenId);
+        // require that the benefactor is the current owner of the derivative work
+        require(benefactors[id] == derivList[id].owner);
 
-    // }
+        // update derivatives's new asking price
+        derivList[id].askingPrice = newAssessedPrice;
+        emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
 
+        // interface the nft and safetransfer from beneficiary to buyer
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, msg.sender, derivList[id].tokenId);
+
+    }
+
+
+    /**
+     *  Allows an owner of a proprietary derivative work to deposit funds.
+     */
     function depositFunds(uint256 id) 
         external 
         payable 
         CardExists(id) 
-        IsOwned(id) 
+        IsProprietary(id) 
+        OnlyOwner(id)
         returns(uint256)
     {
-        require(msg.sender == derivCardList[id].seller, "Cannot deposit funds for a card you don't own");
 
         deposit[msg.sender].add(msg.value);
         uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
         totalOwedTokenCost[msg.sender][id].sub(msg.value);
          
-        derivCardList[id].beneficiary.transfer(msg.value);
+        derivList[id].beneficiary.transfer(msg.value);
         assert(prevOwedBalance.sub(msg.value) == totalOwedTokenCost[msg.sender][id]);
         emit cardDeposit(id, msg.sender, msg.value);
         return totalOwedTokenCost[msg.sender][id];
     }
 
-    function forecloseCard(uint256 id)
-        public 
+    function forecloseDerivative(uint256 id)
+        private 
         CardExists(id) 
-        IsOwned(id) 
-        OnlyAdmin(msg.sender)
+        IsProprietary(id) 
    {
-       address owner = derivCardList[id].seller;
+       address owner = derivList[id].owner;
        require(deposit[owner] == 0 || deposit[owner] < totalOwedTokenCost[owner][id],
-        "Patron still has enough funds deposited to retain ownership of the card");
+        "Owner still has enough funds deposited to retain ownership of the card");
         
-        derivCardList[id].isOwned = false;
-        derivCardList[id].seller = derivCardList[id].beneficiary; 
+        derivList[id].isProprietary = false;
+        derivList[id].owner = derivList[id].beneficiary; 
 
-        emit cardForeclosed(id, owner, derivCardList[id].askingPrice);
+        emit cardForeclosed(id, owner, derivList[id].askingPrice);
    }
+
+   function changeToOpenSource() public {}
+
+   function changeToProprietary() public {}
 
    function _calculateFee(uint256 id) 
         view 
         internal
         CardExists(id) 
-        IsOwned(id) 
+        IsProprietary(id) 
         returns(uint256)
    {
-       return (derivCardList[id].fee).mul(derivCardList[id].askingPrice);
+       return (derivList[id].fee).mul(derivList[id].askingPrice);
    }
 }
