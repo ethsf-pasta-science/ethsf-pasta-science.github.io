@@ -5,7 +5,7 @@ import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
 import "../node_modules/@openzeppelin/contracts/utils/Counters.sol";
 
 
-contract LicenseToken is ERC721 {
+contract DerivativeToken is ERC721 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
  
@@ -26,10 +26,10 @@ contract LicenseToken is ERC721 {
     
     mapping(address => uint256) ownerTokenCount;
     mapping(uint256 => address) tokenOwner;
-    mapping(uint256 => Derivative) public Derivatives;
+    mapping(uint256 => Derivative) public works;
 
     /**
-     * Mints a new card with a given uri
+     * Mints a new derivative work with a given uri
      */
     function mintDerivative(string memory uri) 
         public
@@ -39,7 +39,7 @@ contract LicenseToken is ERC721 {
         uint256 newDerivId = _tokenIds.current();
         _safeMint(msg.sender, newDerivId);
 
-        Derivatives[newDerivId] = Derivative(newDerivId, uri);
+        works[newDerivId] = Derivative(newDerivId, uri);
 
         return newDerivId;
     }
@@ -47,6 +47,6 @@ contract LicenseToken is ERC721 {
     function tokenURI(uint256 newDerivId) public view override returns (string memory) {
         require(_exists(newDerivId), "ERC721Metadata: URI query for nonexistent token");
 
-        return Derivatives[newDerivId].uri;
+        return works[newDerivId].uri;
     }
 } 
