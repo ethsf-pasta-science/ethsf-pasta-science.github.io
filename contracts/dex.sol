@@ -11,7 +11,7 @@ contract Market is Pausable {
     address[] public adminList;
     mapping(address => bool) adminMap;
 
-    struct AuctionCard {
+    struct DerivCard {
         uint256 id;
         address tokenAddress;
         uint256 tokenId; 
@@ -23,7 +23,7 @@ contract Market is Pausable {
     }
 
     // listing of every card that hasn't yet been foreclosed
-    AuctionCard[] public auctionCardList;
+    DerivCard[] public derivCardList;
 
     // stores the asking prices of each card listed under a certain token
     mapping(address => mapping(uint256 => uint256)) cardsAskPrice;
@@ -63,7 +63,7 @@ contract Market is Pausable {
      * @notice Requires that only patrons of the card can call a given function
      */
      modifier OnlyPatron(uint256 id) {
-        require(auctionCardList[id].seller == msg.sender, 
+        require(derivCardList[id].seller == msg.sender, 
             "This operation can only be executed by the card's beneficiary");
          _;
      }
@@ -99,17 +99,17 @@ contract Market is Pausable {
      * @notice Requires that the item is listed in the marketplace 
      */
      modifier CardExists(uint256 id) {
-         require(id < auctionCardList.length && auctionCardList[id].id == id, "Could not find card.");
+         require(id < derivCardList.length && derivCardList[id].id == id, "Could not find card.");
          _;
      }
 
      modifier IsOwned(uint256 id) {
-         require(auctionCardList[id].isOwned, "Cannot force a sale on a foreclosed card.");
+         require(derivCardList[id].isOwned, "Cannot force a sale on a foreclosed card.");
          _;
      }
      
      modifier IsForeclosed(uint256 id) {
-         require(!auctionCardList[id].isOwned, "Cannot place a bid on a owned card.");
+         require(!derivCardList[id].isOwned, "Cannot place a bid on a owned card.");
          _;
      }
 
@@ -125,11 +125,11 @@ contract Market is Pausable {
         {
         require(fee > 0, "Card must have a tax rate");
         // @TODO:require that the card isn't for auction yet?
-        uint256 newCardId = auctionCardList.length;
-        auctionCardList.push(AuctionCard(newCardId, tokenAddress, tokenId, payable(msg.sender), askingPrice, beneficiary, fee, false));
+        uint256 newCardId = derivCardList.length;
+        derivCardList.push(DerivCard(newCardId, tokenAddress, tokenId, payable(msg.sender), askingPrice, beneficiary, fee, false));
         ownedCard[tokenId] = true;
 
-        assert(auctionCardList[newCardId].id == newCardId);
+        assert(derivCardList[newCardId].id == newCardId);
         emit cardAdded(newCardId, tokenId, askingPrice);
         return newCardId;
     } 
@@ -142,23 +142,23 @@ contract Market is Pausable {
         external
         CardExists(id) 
         IsOwned(id) 
-        HasTransferApproval(auctionCardList[id].tokenAddress, auctionCardList[id].tokenId) 
+        HasTransferApproval(derivCardList[id].tokenAddress, derivCardList[id].tokenId) 
     {
-        require(msg.value >= auctionCardList[id].askingPrice);
-        require(msg.sender != auctionCardList[id].seller);
+        require(msg.value >= derivCardList[id].askingPrice);
+        require(msg.sender != derivCardList[id].seller);
         
         // update card's new price
-        auctionCardList[id].askingPrice = newAssessedPrice;
+        derivCardList[id].askingPrice = newAssessedPrice;
         emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
 
         // interface the nft and safetransfer from seller to buyer
-        IERC721(auctionCardList[id].tokenAddress).safeTransferFrom(auctionCardList[id].seller, msg.sender, auctionCardList[id].tokenId);
+        IERC721(derivCardList[id].tokenAddress).safeTransferFrom(derivCardList[id].seller, msg.sender, derivCardList[id].tokenId);
         
         // transfer funds to seller 
-        auctionCardList[id].seller.transfer(msg.value);
+        derivCardList[id].seller.transfer(msg.value);
         emit cardSold(id, msg.sender, msg.value);
         
-        assert(auctionCardList[id].seller == msg.sender);
+        assert(derivCardList[id].seller == msg.sender);
     } 
 
     // function bid(uint256 id, uint256 newAssessedPrice) 
@@ -166,18 +166,18 @@ contract Market is Pausable {
     //     external 
     //     CardExists(id)
     //     IsForeclosed(id) 
-    //     HasTransferApproval(auctionCardList[id].tokenAddress, auctionCardList[id].tokenId) 
+    //     HasTransferApproval(derivCardList[id].tokenAddress, derivCardList[id].tokenId) 
     // {
-    //     require(msg.value >= auctionCardList[id].askingPrice);
-    //     // equire(msg.sender != auctionCardList[id].seller); is this required?
+    //     require(msg.value >= derivCardList[id].askingPrice);
+    //     // equire(msg.sender != derivCardList[id].seller); is this required?
 
     //     // update card's new price
-    //     auctionCardList[id].askingPrice = newAssessedPrice;
+    //     derivCardList[id].askingPrice = newAssessedPrice;
     //     emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
 
     //     //@TODO: in foreclose function, make sure to change the seller so they reliquinsh ownership
     //     // interface the nft and safetransfer from seller to buyer
-    //     IERC721(auctionCardList[id].tokenAddress).safeTransferFrom(auctionCardList[id].seller, msg.sender, auctionCardList[id].tokenId);
+    //     IERC721(derivCardList[id].tokenAddress).safeTransferFrom(derivCardList[id].seller, msg.sender, derivCardList[id].tokenId);
 
     // }
 
@@ -188,13 +188,13 @@ contract Market is Pausable {
         IsOwned(id) 
         returns(uint256)
     {
-        require(msg.sender == auctionCardList[id].seller, "Cannot deposit funds for a card you don't own");
+        require(msg.sender == derivCardList[id].seller, "Cannot deposit funds for a card you don't own");
 
         deposit[msg.sender].add(msg.value);
         uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
         totalOwedTokenCost[msg.sender][id].sub(msg.value);
          
-        auctionCardList[id].beneficiary.transfer(msg.value);
+        derivCardList[id].beneficiary.transfer(msg.value);
         assert(prevOwedBalance.sub(msg.value) == totalOwedTokenCost[msg.sender][id]);
         emit cardDeposit(id, msg.sender, msg.value);
         return totalOwedTokenCost[msg.sender][id];
@@ -206,14 +206,14 @@ contract Market is Pausable {
         IsOwned(id) 
         OnlyAdmin(msg.sender)
    {
-       address owner = auctionCardList[id].seller;
+       address owner = derivCardList[id].seller;
        require(deposit[owner] == 0 || deposit[owner] < totalOwedTokenCost[owner][id],
         "Patron still has enough funds deposited to retain ownership of the card");
         
-        auctionCardList[id].isOwned = false;
-        auctionCardList[id].seller = auctionCardList[id].beneficiary; 
+        derivCardList[id].isOwned = false;
+        derivCardList[id].seller = derivCardList[id].beneficiary; 
 
-        emit cardForeclosed(id, owner, auctionCardList[id].askingPrice);
+        emit cardForeclosed(id, owner, derivCardList[id].askingPrice);
    }
 
    function _calculateFee(uint256 id) 
@@ -223,6 +223,6 @@ contract Market is Pausable {
         IsOwned(id) 
         returns(uint256)
    {
-       return (auctionCardList[id].fee).mul(auctionCardList[id].askingPrice);
+       return (derivCardList[id].fee).mul(derivCardList[id].askingPrice);
    }
 }
