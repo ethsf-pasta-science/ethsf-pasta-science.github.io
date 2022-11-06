@@ -6,71 +6,64 @@ import "../node_modules/@openzeppelin/contracts/security/Pausable.sol";
 
 contract Market is Pausable {
     
-    using SafeMath for uint256; 
+    using SafeMath for uint; 
 
     address[] public adminList;
     mapping(address => bool) adminMap;
 
     struct DerivCard {
-        uint256 id;                   // id associated with listing on the marketplace
+        uint id;                   // id associated with listing on the marketplace
         address tokenAddress;         // address for the OSS's token; for interfacing with the OSS NFT
-        uint256 tokenId;              // ID for the NFT derivative work token; for O(1) indexing for read and write using mappings and lists
+        uint tokenId;              // ID for the NFT derivative work token; for O(1) indexing for read and write using mappings and lists
         address payable owner;        // current owner of the derivative work
-        uint256 askingPrice;          // current asking price of the derivative work
+        uint askingPrice;          // current asking price of the derivative work
         address payable beneficiary;  // OSS community that created the OSS that the derivative work uses
-        uint256 fee;                  // percentage of fee from the asking price that the owner must pay to hold the derivative work proprietary
+        uint fee;                  // percentage of fee from the asking price that the owner must pay to hold the derivative work proprietary
         bool isProprietary;           // if true, the license behaves as copyleft, if false the license behaves as permissive
     }
 
     // listing of every open-source derivative work
     DerivCard[] public derivList;
 
-    // stores the asking prices of each derivative work listed under a certain token
-    // mapping of a OSS's address to a derivative 
-    mapping(address => mapping(uint256 => uint256)) derivAskPrice;
-
-    // mapping of tokenId to if it's owned
-    mapping(uint256 => bool) ownedCard;
-
     // mapping of a user's address to a balance of funds deposited for their proprietary software
     // total funds remaining in deposit of a patron to hold a token
-    mapping(address => mapping(uint256 => uint256)) public deposit;
+    mapping(address => mapping(uint => uint)) public deposit;
 
     // mapping of a token's id to the the last time a user paid a deposit
-    mapping(address => mapping(uint256 => uint256)) private lastDepositTimestamp;  
+    mapping(address => mapping(uint => uint)) private lastDepositTimestamp;  
 
     // total funds still owed by owner
     // mapping of the owner's address to the derivative's cost
-    mapping(address => mapping(uint256 => uint256)) public totalOwedTokenCost;
+    mapping(address => mapping(uint => uint)) public totalOwedTokenCost;
     
 
     // organization receiving tax revenue 
-    mapping(uint256 => address) public benefactors;
-    mapping(address => uint256) public benefactorFunds;
+    mapping(uint => address) public benefactors;
+    mapping(address => uint) public benefactorFunds;
 
     /* EVENTS */
 
     /// @notice emits an event when a new card is added to the market 
-    event cardAdded(uint256 id, uint256 tokenId, uint256 askingPrice);
+    event cardAdded(uint id, uint tokenId, uint askingPrice);
 
     /// @notice emits an event when a forced sale occurs
-    event cardSold(uint256 id, address buyer, uint256 askingPrice);
+    event cardSold(uint id, address buyer, uint askingPrice);
     
     /// @notice emits an event when a card gets a new self-assessed price
-    event cardUpdatePrice(uint256 id, address owner, uint256 askingPrice);
+    event cardUpdatePrice(uint id, address owner, uint askingPrice);
 
     /// @notice emits an event when the owner defaults on their tax and the card is foreclosed
-    event cardForeclosed(uint256 id, address owner, uint256 askingPrice);
+    event cardForeclosed(uint id, address owner, uint askingPrice);
 
     /// @notice emits an event when a deposit is made
-    event cardDeposit(uint256 id, address owner, uint256 amount);
+    event cardDeposit(uint id, address owner, uint amount);
 
     /* MODIFIERS */
      
     /**
      * @notice Requires that only patrons of the card can call a given function
      */
-     modifier OnlyOwner(uint256 id) {
+     modifier OnlyOwner(uint id) {
         require(derivList[id].owner == msg.sender, 
             "This operation can only be executed by the card's owner");
          _;
@@ -86,7 +79,7 @@ contract Market is Pausable {
     /**
      * @notice Requires that only the benefactors (minters) of the car can call a given function.
      */
-    modifier OnlyBenefactor(address tokenAddress, uint256 tokenId) {
+    modifier OnlyBenefactor(address tokenAddress, uint tokenId) {
         IERC721 tokenContract = IERC721(tokenAddress);
         require(tokenContract.ownerOf(tokenId) == msg.sender, 
             "This operation can only be executed by the card's beneficiary (minter)");
@@ -96,7 +89,7 @@ contract Market is Pausable {
     /** 
      * @notice Requires that the specified contract making an external call has been approved to make transfers. 
      */
-    modifier HasTransferApproval(address tokenAddress, uint256 tokenId) {
+    modifier HasTransferApproval(address tokenAddress, uint tokenId) {
         IERC721 tokenContract = IERC721(tokenAddress);
         require(tokenContract.getApproved(tokenId) == address(this), 
             "Contract has not been approved to make transfers");
@@ -106,17 +99,17 @@ contract Market is Pausable {
     /**
      * @notice Requires that the item is listed in the marketplace 
      */
-     modifier CardExists(uint256 id) {
+     modifier CardExists(uint id) {
          require(id < derivList.length && derivList[id].id == id, "Could not find card.");
          _;
      }
 
-     modifier IsProprietary(uint256 id) {
+     modifier IsProprietary(uint id) {
          require(derivList[id].isProprietary, "Derivatice work is open-source.");
          _;
      }
      
-     modifier IsOSS(uint256 id) {
+     modifier IsOSS(uint id) {
          require(!derivList[id].isProprietary, "Derivative work is proprietary.");
          _;
      }
@@ -125,17 +118,16 @@ contract Market is Pausable {
      /**
       * @notice Lists a card for auction in the market 
       */
-     function addDerivToMarket(address tokenAddress, uint256 tokenId, uint256 askingPrice, address payable beneficiary, uint256 fee) 
+     function addDerivToMarket(address tokenAddress, uint tokenId, uint askingPrice, address payable beneficiary, uint fee) 
         OnlyBenefactor(tokenAddress, tokenId) 
         HasTransferApproval(tokenAddress, tokenId)
         external
-        returns(uint256)
+        returns(uint)
         {
         require(fee > 0, "Derivative work must have a fee rate");
         // @TODO:require that the card isn't for auction yet?
-        uint256 newCardId = derivList.length;
+        uint newCardId = derivList.length;
         derivList.push(DerivCard(newCardId, tokenAddress, tokenId, payable(msg.sender), askingPrice, beneficiary, fee, false));
-        ownedCard[tokenId] = true;
 
         assert(derivList[newCardId].id == newCardId);
         emit cardAdded(newCardId, tokenId, askingPrice);
@@ -145,7 +137,7 @@ contract Market is Pausable {
     /**
      *  Forces a the derivative work to be OSS by buying an already owned derivative work at a higher or equal assessed price.
      */
-    function forceOSS(uint256 id, uint256 newAssessedPrice) 
+    function forceOSS(uint id, uint newAssessedPrice) 
         payable
         external
         CardExists(id) 
@@ -175,7 +167,7 @@ contract Market is Pausable {
     /**
      *  Allows a derivative work that has not yet been owned to become proprietary under the ownership of the caller. 
      */
-    function makeProprietary(uint256 id, uint256 newAssessedPrice) 
+    function makeProprietary(uint id, uint newAssessedPrice) 
         external 
         payable 
         CardExists(id)
@@ -194,10 +186,10 @@ contract Market is Pausable {
         // require that the caller is not the benefactor
         require(msg.sender != derivList[id].beneficiary);
 
-        // update their deposit if they've paid more money than the asking price
-        if (msg.value > derivList[id].askingPrice) {
-            deposit[msg.sender][id] = derivList[id].askingPrice.sub(msg.value);
-        }
+        // // update their deposit if they've paid more money than the asking price
+        // if (msg.value > derivList[id].askingPrice) {
+        //     deposit[msg.sender][id] = derivList[id].askingPrice.sub(msg.value);
+        // }
 
         // pay the asking price to the beneficiary's address
         derivList[id].beneficiary.transfer(derivList[id].askingPrice);
@@ -217,59 +209,72 @@ contract Market is Pausable {
     /**
      *  Allows an owner of a proprietary derivative work to deposit funds.
      */
-    function depositFunds(uint256 id) 
+    function depositFunds(uint id) 
         external 
         payable 
         CardExists(id) 
         IsProprietary(id) 
         OnlyOwner(id)
-        returns(uint256)
+        returns(uint)
     {
         require(msg.value > 0, "Invalid amount of funds deposited.");
         require(msg.sender != derivList[id].beneficiary, "Cannot be the benficiary and the owner");
 
-        // transfer the dunds to the beneficiary
-        derivList[id].beneficiary.transfer(msg.value);
-        lastDepositTimestamp[msg.sender][id] = block.timestamp;
-        uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
-        deposit[msg.sender][id] = deposit[msg.sender][id].add(msg.value);
+        // // calculate the cumulative fees
+        // updateTotalOwedCost();
+        // uint cumFee = totalOwedTokenCost[msg.sender][id];
 
-        // immediately foreclose the derivative if the owner did not pay enough to cover their totalOwedTokenCost
-        if (deposit[msg.sender][id] < totalOwedTokenCost[msg.sender][id]) {
+        // if (msg.value >= cumFee) {
 
-            // interface the nft and safetransfer from owner to beneficiary
-            IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, derivList[id].beneficiary, derivList[id].tokenId);
+        //     // transfer the fees to the beneficiary
+        //     lastDepositTimestamp[msg.sender][id] = block.timestamp;  
+        //     derivList[id].beneficiary.transfer(cumFee);  
 
-            // update the fields of the derivative work
-            derivList[id].isProprietary = false;
-            derivList[id].owner = derivList[id].beneficiary; 
-            totalOwedTokenCost[msg.sender][id] = 0;
+        //     // update the total owed cost 
+        //     totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].sub(cumFee);
 
-            emit cardForeclosed(id, msg.sender, derivList[id].askingPrice);
+        //     // add the excess of the value sent to the deposit
+        //     uint excess = msg.value.sub(cumFee);
+        //     deposit[msg.sender][id] = deposit[msg.sender][id].add(excess);
+        // } else {
 
-        } else {
-            totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].sub(msg.value);
+        //     uint diff = cumFee - msg.value;
+        //     // if there is enough funds in deposit to cover the fee, pay from the fee
+        //     if (deposit[msg.sender][id] >= cumFee) {
+        //         // transfer the difference from the deposit and 
+        //         deposit[msg.sender][id] = deposit[msg.sender][id].sub(diff);
+        //         derivList[id].beneficiary.transfer(cumFee);  
+        //         totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].sub(cumFee);
 
-            assert(prevOwedBalance.sub(msg.value) == totalOwedTokenCost[msg.sender][id]);
-            emit cardDeposit(id, msg.sender, msg.value);
-        }
+        //     } else {
+        //         derivList[id].beneficiary.transfer(msg.value);  
+        //         totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].add(diff);
+
+        //     }
+        // }
+
+        // calculate the cumulative fees
+        updateTotalOwedCost();
+        uint cumFee = totalOwedTokenCost[msg.sender][id];
+        derivList[id].beneficiary.transfer(cumFee);  
+
+        // update the total owed cost 
+        totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].sub(cumFee);
 
         return totalOwedTokenCost[msg.sender][id];
     }
-
 
     /**
      *  Updates the total amount that is owed by the owner of a given derivative work after the elapsed time.   
      */
     function updateTotalOwedCost() 
         public
-        OnlyAdmin(msg.sender) 
     {
-        for (uint256 id = 0; id < derivList.length; id++) {
+        for (uint id = 0; id < derivList.length; id++) {
             if (derivList[id].isProprietary) {
                 address owner = derivList[id].owner;
-                uint256 elapsedTime = block.timestamp.sub(lastDepositTimestamp[owner][id]);
-                uint256 cummFee = _calculateFee(id).mul(elapsedTime);
+                uint elapsedTime = block.timestamp.sub(lastDepositTimestamp[owner][id]);
+                uint cummFee = _calculateFee(id).mul(elapsedTime);
 
                 totalOwedTokenCost[owner][id] = totalOwedTokenCost[owner][id].add(cummFee);
             }
@@ -279,7 +284,7 @@ contract Market is Pausable {
     /**
      *  Forecloses the derivative by making the work open-source from being proprietary.
      */
-    function forecloseDerivative(uint256 id)
+    function forecloseDerivative(uint id)
         public 
         OnlyAdmin(msg.sender) 
         CardExists(id) 
@@ -302,7 +307,7 @@ contract Market is Pausable {
         emit cardForeclosed(id, owner, derivList[id].askingPrice);
    }
 
-    function changeToOpenSource(uint256 id) 
+    function changeToOpenSource(uint id) 
         public
         CardExists(id)
         IsProprietary(id) 
@@ -319,7 +324,7 @@ contract Market is Pausable {
             
     }
 
-    function changeToProprietary(uint256 id, uint256 newAssessedPrice) 
+    function changeToProprietary(uint id, uint newAssessedPrice) 
         public
         payable 
         CardExists(id)
@@ -353,12 +358,12 @@ contract Market is Pausable {
 
     }
 
-   function _calculateFee(uint256 id) 
+   function _calculateFee(uint id) 
         view 
         internal
         CardExists(id) 
         IsProprietary(id) 
-        returns(uint256)
+        returns(uint)
    {
        return (derivList[id].fee).mul(derivList[id].askingPrice);
    }
