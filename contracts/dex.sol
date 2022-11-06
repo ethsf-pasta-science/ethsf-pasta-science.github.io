@@ -2,9 +2,9 @@ pragma solidity ^0.8.0;
 
 import "../node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "../node_modules/@openzeppelin/contracts/security/Pausable.sol";
+import "./Wallet.sol";
 
-contract Market is Pausable {
+contract Market is Wallet{
     
     using SafeMath for uint; 
 
