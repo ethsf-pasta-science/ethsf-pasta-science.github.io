@@ -1,16 +1,253 @@
 <!DOCTYPE html>
 <html>
+
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Favicons -->
   <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+  <link rel="shortcut icon" type="image/x-icon" href="favicons/favicon.ico"/>
+  <!-- Styles -->
+  <link rel="stylesheet" type="text/css" href="main.css">
+  <link href='https://fonts.googleapis.com/css?family=Roboto Mono' rel='stylesheet'>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <link href='https://fonts.googleapis.com/css?family=Kanit' rel='stylesheet'>
+  <link href='https://fonts.googleapis.com/css?family=Lobster' rel='stylesheet'>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <!-- Title -->
   <title>🍝 Pasta Science 🧪</title>
-</head>
-<body>
+  <!-- Custom Styles -->
+  <style type="text/css">
+    /*************************************************************************
+     * Home Body-Wide Styles
+     ************************************************************************/
+    #home-body {
+      background-color: lightblue;
+    }
 
-<h1>HULLOOOOOOOOOO</h1>
+
+    /*************************************************************************
+     * Home Header Styles
+     ************************************************************************/
+    #home-header {
+      margin: 15px;
+      margin-top: 30px;
+      width: auto;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .home-header-item {
+      margin: 5px;
+      margin-left: 15px;
+      margin-right: 15px;
+    }
+
+    #home-header-logo {
+      font-family: Roboto Mono;
+      font-size: 25px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #home-header-logo:hover {
+      font-style: italic;
+    }
+
+    #home-header-search {
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    .home-header-button {
+      font-family: Kanit;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      font-style: none;
+    }
+
+    .home-header-button:hover {
+      font-style: italic;
+    }
+
+    #home-header-profile-button {
+      border-radius: 50%;
+      border: 2px solid black;
+      padding: 2px;
+      color: black;
+      background-color:lightblue;
+      font-size:30px; 
+      cursor: pointer;
+    }
+
+
+    /*************************************************************************
+     * Home Message Styles
+     ************************************************************************/
+    #home-message {
+      text-align: center;
+      font-family: Lobster;
+      font-weight: bold;
+      font-style: italic;
+      font-size: 50px;
+      margin-top: 25px;
+      margin-right: 100px;
+    }
+
+
+    /*************************************************************************
+     * NFT Display Styles
+     ************************************************************************/
+    #home-latest-nfts {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .home-latest-nft-container {
+      margin-left: 10px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .home-latest-nft-image {
+      width: 250px;
+      height: 250px;
+      border: solid 1px black;
+    }
+
+    .home-latest-nft-text {
+      font-family: Roboto;
+      font-size: 15px;
+    }
+  </style>
+</head>
+
+
+<!-- Body -->
+<body id=home-body>
+  <!-- Header -->
+  <div id=home-header>
+    <!-- <a id=home-header-logo class="home-header-item" href="https://github.com/ethsf-pasta-science/ethsf-pasta-science.github.io" target="_blank">🍝Science</a> -->
+    <div id=home-header-logo class="home-header-item" onclick="exeLogoClick()">🍝Science</div>
+    <input type="search" class="home-header-item" id="home-header-search" name="home-header-search" autocomplete="on" onkeydown="exeSearchBarEntry()" size="80" placeholder="  Search items here ...">
+    <button type="button" class="home-header-item home-header-button" id="home-header-explore-button">Explore</button>
+    <button type="button" class="home-header-item home-header-button" id="home-header-create-button">Create</button>
+    <div class="home-header-item material-icons" id="home-header-profile-button">&#xe7fd;</div>
+  </div>
+
+  <!-- Home Page Message -->
+  <div id="home-message">Support the Open Source Community!</div>
+
+  <!-- Latest NFT Uploads -->
+  <center id=home-latest-nfts></center>
+  <script type="text/javascript">
+
+    //////////////////////////////////////////////////////////////////////////
+    // Logo-Click
+    //////////////////////////////////////////////////////////////////////////
+    function exeLogoClick() {
+      window.open('https://github.com/ethsf-pasta-science/ethsf-pasta-science.github.io', '_blank');
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Search Bar Entry
+    //////////////////////////////////////////////////////////////////////////
+    function exeSearchBarEntry() {
+      const RETURN_BUTTON_KEY_CODE = 13;
+      if(event.keyCode == RETURN_BUTTON_KEY_CODE) {
+        let searchBoxQuery = document.getElementById('home-header-search').value;
+        alert(`User Searched: "${searchBoxQuery}"`);
+      }
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Explore Button Click
+    //////////////////////////////////////////////////////////////////////////
+    document.getElementById('home-header-explore-button').onclick = function() {
+      alert(`"Explore" button was clicked!`);
+    };
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Create Button Click
+    //////////////////////////////////////////////////////////////////////////
+    document.getElementById('home-header-create-button').onclick = function() {
+      alert(`"Create" button was clicked!`);
+    };
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Profile Icon Click
+    //////////////////////////////////////////////////////////////////////////
+    document.getElementById('home-header-profile-button').onclick = function() {
+      alert(`"Profile" icon was clicked!`);
+    };
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // NFT Picture Click
+    //////////////////////////////////////////////////////////////////////////
+    function exeNftPictureClick(obj) {
+      const nftUrl = obj.children[0].src;
+      const nftDescription = obj.children[1].innerHTML;
+      alert(`NFT was clicked!\nDescription=${nftDescription}\nURL=${nftUrl}`);
+    };
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Get Latest Uploaded NFTs
+    //////////////////////////////////////////////////////////////////////////
+
+    // Returns an array of pairs: NFT image urls & a their description
+    function getLatestNfts() {
+      const dummyNFTs = [
+        ['https://www.pinkvilla.com/imageresize/decoding_nfts_what_are_nfts_and_how_do_they_work_all_you_need_to_know.jpg?width=752&t=pvorg', 'Blue background, gold monkey'], 
+        ['https://imageio.forbes.com/specials-images/imageserve/6170e01f8d7639b95a7f2eeb/Sotheby-s-NFT-Natively-Digital-1-2-sale-Bored-Ape-Yacht-Club--8817-by-Yuga-Labs/0x0.png?format=png&width=960', 'Orange background, gold monkey'], 
+        ['https://www.protocol.com/media-library/cryptopunk-7804.jpg?id=25834329&width=1245&height=700&quality=85&coordinates=0%2C299%2C0%2C0', 'Smoking Alien'], 
+        ['https://nftevening.com/wp-content/uploads/2022/05/cryptopunk-nft-sold.jpg', 'Coolin Gentleman'], 
+      ];
+      return dummyNFTs;
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    // Triggered Logic on Page Load
+    //////////////////////////////////////////////////////////////////////////
+    (function() {
+      // Display the latest NFTs
+      function displayLatestNfts() {
+        let buffer = '';
+        let nfts = getLatestNfts();
+        for(let nft of nfts) {
+          buffer += 
+            `<div class="home-latest-nft-container" onclick="exeNftPictureClick(this)">
+              <img class="home-latest-nft-image" src="${nft[0]}"></image>
+              <p class="home-latest-nft-text">${nft[1]}</p>
+            </div>`;
+        }
+        document.getElementById('home-latest-nfts').innerHTML = buffer;
+      }
+
+      // Main Execution
+      function main() {
+        displayLatestNfts();
+      }
+
+      // Launch Main Execution
+      main();
+    })();
+  </script>
+
 
 </body>
 </html>
