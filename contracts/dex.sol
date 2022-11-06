@@ -37,7 +37,7 @@ contract Market is Pausable {
     mapping(address => mapping(uint256 => uint256)) public deposit;
 
     // mapping of a token's id to the the last time a user paid a deposit
-    mapping(uint256 => mapping(address => uint256)) private lastDepositTimestamp;  
+    mapping(address => mapping(uint256 => uint256)) private lastDepositTimestamp;  
 
     // total funds still owed by owner
     // mapping of the owner's address to the derivative's cost
@@ -191,6 +191,9 @@ contract Market is Pausable {
         // require that the benefactor is the current owner of the derivative work
         require(benefactors[id] == derivList[id].owner);
 
+        // require that the caller is not the benefactor
+        require(msg.sender != derivList[id].beneficiary);
+
         // update their deposit if they've paid more money than the asking price
         if (msg.value > derivList[id].askingPrice) {
             deposit[msg.sender][id] = derivList[id].askingPrice.sub(msg.value);
@@ -209,8 +212,6 @@ contract Market is Pausable {
         // update derivatives's new asking price
         derivList[id].askingPrice = newAssessedPrice;
         emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
-
-
     }
 
     /**
@@ -224,34 +225,133 @@ contract Market is Pausable {
         OnlyOwner(id)
         returns(uint256)
     {
-        deposit[msg.sender][id].add(msg.value);
-        uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
-        totalOwedTokenCost[msg.sender][id].sub(msg.value);
-         
+        require(msg.value > 0, "Invalid amount of funds deposited.");
+        require(msg.sender != derivList[id].beneficiary, "Cannot be the benficiary and the owner");
+
+        // transfer the dunds to the beneficiary
         derivList[id].beneficiary.transfer(msg.value);
-        assert(prevOwedBalance.sub(msg.value) == totalOwedTokenCost[msg.sender][id]);
-        emit cardDeposit(id, msg.sender, msg.value);
+        lastDepositTimestamp[msg.sender][id] = block.timestamp;
+        uint256 prevOwedBalance = totalOwedTokenCost[msg.sender][id];
+        deposit[msg.sender][id] = deposit[msg.sender][id].add(msg.value);
+
+        // immediately foreclose the derivative if the owner did not pay enough to cover their totalOwedTokenCost
+        if (deposit[msg.sender][id] < totalOwedTokenCost[msg.sender][id]) {
+
+            // interface the nft and safetransfer from owner to beneficiary
+            IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, derivList[id].beneficiary, derivList[id].tokenId);
+
+            // update the fields of the derivative work
+            derivList[id].isProprietary = false;
+            derivList[id].owner = derivList[id].beneficiary; 
+            totalOwedTokenCost[msg.sender][id] = 0;
+
+            emit cardForeclosed(id, msg.sender, derivList[id].askingPrice);
+
+        } else {
+            totalOwedTokenCost[msg.sender][id] = totalOwedTokenCost[msg.sender][id].sub(msg.value);
+
+            assert(prevOwedBalance.sub(msg.value) == totalOwedTokenCost[msg.sender][id]);
+            emit cardDeposit(id, msg.sender, msg.value);
+        }
+
         return totalOwedTokenCost[msg.sender][id];
     }
 
+
+    /**
+     *  Updates the total amount that is owed by the owner of a given derivative work after the elapsed time.   
+     */
+    function updateTotalOwedCost() 
+        public
+        OnlyAdmin(msg.sender) 
+    {
+        for (uint256 id = 0; id < derivList.length; id++) {
+            if (derivList[id].isProprietary) {
+                address owner = derivList[id].owner;
+                uint256 elapsedTime = block.timestamp.sub(lastDepositTimestamp[owner][id]);
+                uint256 cummFee = _calculateFee(id).mul(elapsedTime);
+
+                totalOwedTokenCost[owner][id] = totalOwedTokenCost[owner][id].add(cummFee);
+            }
+        }
+    }
+
+    /**
+     *  Forecloses the derivative by making the work open-source from being proprietary.
+     */
     function forecloseDerivative(uint256 id)
-        private 
+        public 
+        OnlyAdmin(msg.sender) 
         CardExists(id) 
         IsProprietary(id) 
    {
        address owner = derivList[id].owner;
        require(deposit[owner][id] == 0 || deposit[owner][id] < totalOwedTokenCost[owner][id],
         "Owner still has enough funds deposited to retain ownership of the card");
-        
+
+        // interface the nft and safetransfer from owner to beneficiary
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, derivList[id].beneficiary, derivList[id].tokenId);
+
+        // update the fields of the derivative work
         derivList[id].isProprietary = false;
         derivList[id].owner = derivList[id].beneficiary; 
+
+        // update the total owed cost such that they no longer owe money to the beneficiary
+        totalOwedTokenCost[msg.sender][id] = 0;
 
         emit cardForeclosed(id, owner, derivList[id].askingPrice);
    }
 
-   function changeToOpenSource() public {}
+    function changeToOpenSource(uint256 id) 
+        public
+        CardExists(id)
+        IsProprietary(id) 
+        OnlyOwner(id)
+    {
+        // interface the nft and safetransfer from owner to beneficiary
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].owner, derivList[id].beneficiary, derivList[id].tokenId);
 
-   function changeToProprietary() public {}
+        // update the derivative work so that it's open-source
+        derivList[id].isProprietary = false;
+
+        // update the total owed cost such that they no longer owe money to the beneficiary
+        totalOwedTokenCost[msg.sender][id] = 0;
+            
+    }
+
+    function changeToProprietary(uint256 id, uint256 newAssessedPrice) 
+        public
+        payable 
+        CardExists(id)
+        IsOSS(id) 
+        OnlyOwner(id)
+
+    {
+        // require that the bidding price is greater than the asking price
+        require(msg.value >= derivList[id].askingPrice);
+
+        // require that the caller is not the benefactor
+        require(msg.sender != derivList[id].beneficiary);
+
+        // update their deposit if they've paid more money than the asking price
+        if (msg.value > derivList[id].askingPrice) {
+            deposit[msg.sender][id] = derivList[id].askingPrice.sub(msg.value);
+        }
+
+        // pay the asking price to the beneficiary's address
+        derivList[id].beneficiary.transfer(derivList[id].askingPrice);
+
+        // interface the nft and safetransfer from beneficiary to buyer
+        IERC721(derivList[id].tokenAddress).safeTransferFrom(derivList[id].beneficiary, msg.sender, derivList[id].tokenId);
+
+        // update the derivative work to be proprietary
+        derivList[id].isProprietary = true;
+
+        // update derivatives's new asking price
+        derivList[id].askingPrice = newAssessedPrice;
+        emit cardUpdatePrice(id, msg.sender, newAssessedPrice);
+
+    }
 
    function _calculateFee(uint256 id) 
         view 
