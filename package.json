@@ -20,6 +20,11 @@
   },
   "homepage": "https://github.com/eerinah/HT-License#readme",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.1"
+    "@openzeppelin/contracts": "^4.7.1",
+    "axios": "^1.1.3",
+    "ethers": "^5.7.2",
+    "moralis": "^2.7.1",
+    "next-auth": "^4.15.2",
+    "wagmi": "^0.7.12"
   }
 }
