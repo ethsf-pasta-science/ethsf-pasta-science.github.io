@@ -45,11 +45,12 @@ function SignIn() {
 
     return (<>
 
+        {/* Load the <head> HTML for this page! */}
         <Head>
             {/* <!-- Meta + Title --> */}
             <meta charSet="utf-8"/>
             <meta name="viewport" content="width=device-width, initial-scale=1"/>
-            <title>🍝 Pasta Science 🧪</title>
+            <title>🍝 Sign In! 🧪</title>
         </Head>
 
         <div>
