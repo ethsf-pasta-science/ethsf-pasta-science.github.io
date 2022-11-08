@@ -1,0 +1,106 @@
+    /*************************************************************************
+     * Home Body-Wide Styles
+     ************************************************************************/
+     #home-body {
+        background-color: lightblue;
+      }
+  
+  
+      /*************************************************************************
+       * Home Header Styles
+       ************************************************************************/
+      #home-header {
+        margin: 15px;
+        margin-top: 30px;
+        width: auto;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+      }
+  
+      .home-header-item {
+        margin: 5px;
+        margin-left: 15px;
+        margin-right: 15px;
+      }
+  
+      #home-header-logo {
+        font-family: Roboto Mono;
+        font-size: 25px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+  
+      #home-header-logo:hover {
+        font-style: italic;
+      }
+  
+      #home-header-search {
+        border-radius: 10px;
+        font-size: 15px;
+      }
+  
+      .home-header-button {
+        font-family: Kanit;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 15px;
+        cursor: pointer;
+        font-style: none;
+      }
+  
+      .home-header-button:hover {
+        font-style: italic;
+      }
+  
+      #home-header-profile-button {
+        border-radius: 50%;
+        border: 2px solid black;
+        padding: 2px;
+        color: black;
+        background-color:lightblue;
+        font-size:30px; 
+        cursor: pointer;
+      }
+  
+  
+      /*************************************************************************
+       * Home Message Styles
+       ************************************************************************/
+      #home-message {
+        text-align: center;
+        font-family: Lobster;
+        font-weight: bold;
+        font-style: italic;
+        font-size: 50px;
+        margin-top: 25px;
+        margin-right: 100px;
+      }
+  
+  
+      /*************************************************************************
+       * NFT Display Styles
+       ************************************************************************/
+      #home-latest-nfts {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+  
+      .home-latest-nft-container {
+        margin-left: 10px;
+        margin-right: 10px;
+        cursor: pointer;
+      }
+  
+      .home-latest-nft-image {
+        width: 250px;
+        height: 250px;
+        border: solid 1px black;
+      }
+  
+      .home-latest-nft-text {
+        font-family: Roboto;
+        font-size: 15px;
+      }

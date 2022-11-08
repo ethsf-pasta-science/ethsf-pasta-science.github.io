@@ -3,6 +3,7 @@ import { signIn } from 'next-auth/react';
 import { useAccount, useConnect, useSignMessage, useDisconnect } from 'wagmi';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import Head from 'next/head';
 
 function SignIn() {
     const { connectAsync } = useConnect();
@@ -42,12 +43,21 @@ function SignIn() {
         push(url);
     };
 
-    return (
+    return (<>
+
+        <Head>
+            {/* <!-- Meta + Title --> */}
+            <meta charSet="utf-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+            <title>🍝 Pasta Science 🧪</title>
+        </Head>
+
         <div>
             <h3>Web3 Authentication</h3>
             <button onClick={() => handleAuth()}>Authenticate via Metamask</button>
         </div>
-    );
+
+        </>);
 }
 
 export default SignIn;
