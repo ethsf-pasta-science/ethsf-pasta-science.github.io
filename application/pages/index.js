@@ -2,18 +2,35 @@ import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 import axios from "axios"
+import { getSession } from 'next-auth/react';
 
-export default function Home() {
 
-  async function getName() {
-    const response = await axios.get('/api/hello');
-    console.log(response);
+
+// Redirect users to the sign-in page from index.js
+export async function getServerSideProps(context) {
+  const session = await getSession(context);
+  
+  // redirect if not authenticated
+  if (!session) {
+      return {
+          redirect: {
+              destination: '/signin',
+              permanent: false,
+          },
+      };
   }
 
+  return {
+      props: { user: session.user },
+  };
+}
 
+
+
+export default function Home() {
   return (
-    <div className={styles.container}>
-      <button onClick={getName}>Get Name</button>
+    <div>
+      <h1>Never Shown!</h1>
     </div>
   )
-}
+};
