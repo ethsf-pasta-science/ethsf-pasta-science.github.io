@@ -2,7 +2,7 @@ import Moralis from 'moralis';
 
 const config = {
     domain: process.env.NEXT_PUBLIC_APP_DOMAIN,
-    statement: 'Pasta Science Auth',
+    statement: 'Pasta Science Authentication',
     uri: process.env.NEXT_PUBLIC_NEXTAUTH_URL,
     timeout: 60,
 };

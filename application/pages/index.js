@@ -4,28 +4,15 @@ import styles from '../styles/Home.module.css'
 import axios from "axios"
 import { getSession } from 'next-auth/react';
 
-
-
 // Redirect users to the sign-in page from index.js
 export async function getServerSideProps(context) {
-  const session = await getSession(context);
-  
-  // redirect if not authenticated
-  if (!session) {
-      return {
-          redirect: {
-              destination: '/signin',
-              permanent: false,
-          },
-      };
-  }
-
   return {
-      props: { user: session.user },
+    redirect: {
+        destination: '/signin',
+        permanent: false,
+    },
   };
 }
-
-
 
 export default function Home() {
   return (
